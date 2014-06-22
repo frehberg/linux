@@ -1849,10 +1849,28 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 	case STATUSTYPE_TABLE:
 		DMEMIT("%s ", cc->cipher_string);
 
+		/** The kernel might have various encrypted devices in use each with a
+		 * separate cipher-key. The devices might be a system partition or might
+		 * be a device attached by user during runtime, using a key that should
+		 * not be disclosed to admin/root.
+		 *
+		 * The dmsetup-status-report may disclose cipher-keys to user-space: 
+		 * dmsetup table --showkeys
+		 *
+		 * To prevent disclosure no cipher-key should be exposed to user-space.
+		 * 
+		 * The cipher-keys being used  internally should be disclosed only 
+		 * by DEBUG-builds.
+                 */
+
+#ifdef CONFIG_DM_DEBUG
 		if (cc->key_size > 0)
 			for (i = 0; i < cc->key_size; i++)
 				DMEMIT("%02x", cc->key[i]);
 		else
+#else 
+	        (void) i;  /*  prevent 'unused  variable' warning */
+#endif
 			DMEMIT("-");
 
 		DMEMIT(" %llu %s %llu", (unsigned long long)cc->iv_offset,
